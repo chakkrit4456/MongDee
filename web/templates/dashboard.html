@@ -2,21 +2,28 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<title>MONGDEE AI Dashboard & Analytics</title>
+<title>MONGDEE AI Dashboard &amp; Analytics</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <div class="top-bar">
   <a href="/" style="color:#999; text-decoration:none;">← MONGDEE AI Booth OS</a>
-  <div class="title">📊 AI Dashboard &amp; Analytics</div>
+  <div class="title"><svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="19" y1="20" x2="19" y2="14"/></svg>AI Dashboard &amp; Analytics</div>
   <div class="spacer"></div>
   <label style="margin:0;">Event ID:</label>
   <select id="event-filter"><option value="">ทั้งหมด</option></select>
+  <button id="delete-event-btn" class="btn-danger btn-small" title="ลบข้อมูลทั้งหมดของ Event ID ที่เลือก"><svg class="icon-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
   <label style="margin:0;">Booth ID:</label>
   <select id="booth-filter"><option value="">ทั้งหมด</option></select>
+  <button id="delete-booth-btn" class="btn-danger btn-small" title="ลบข้อมูลทั้งหมดของ Booth ID ที่เลือก"><svg class="icon-inline" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
   <input type="file" id="import-file" accept="application/json" style="width:auto; display:none;">
-  <button id="import-btn">📂 นำเข้าข้อมูลบูธอื่น</button>
-  <button id="refresh-btn">🔄 รีเฟรช</button>
+  <button id="import-btn"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6z"/></svg>นำเข้าข้อมูลบูธอื่น</button>
+  <a id="export-link" class="btn" href="#" style="text-decoration:none;"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/></svg>ดาวน์โหลด Excel</a>
+  <button id="refresh-btn"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.7-3.4L23 10M1 14l4.8 4.4A9 9 0 0 0 20.5 15"/></svg>รีเฟรช</button>
+  <a class="btn" href="/booth" style="text-decoration:none;"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9h18v11H3z"/><path d="M9 20v-6h6v6"/></svg>Booth</a>
+  <a class="btn" href="/trainer" style="text-decoration:none;"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5-10-5z"/><path d="M6 11.5V17c0 1.5 3 3 6 3s6-1.5 6-3v-5.5"/><path d="M22 9v6"/></svg>AI Trainer</a>
+  <a class="btn" href="/settings" style="text-decoration:none;"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>ตั้งค่า</a>
+  <button id="theme-toggle-btn" class="theme-toggle-btn" title="สลับโหมดมืด/สว่าง"></button>
 </div>
 
 <div class="cards-row">
@@ -24,26 +31,50 @@
   <div class="stat-card"><div class="value" id="stat-products">0</div><div class="label">Unique Products Shown</div></div>
   <div class="stat-card"><div class="value" id="stat-booths">0</div><div class="label">Active Booths</div></div>
   <div class="stat-card"><div class="value" id="stat-alerts">0</div><div class="label">Open Alerts</div></div>
+  <div class="stat-card"><div class="value" id="stat-people-now">0</div><div class="label">คนในกล้องขณะนี้ (ทุกกล้อง)</div></div>
+  <div class="stat-card"><div class="value" id="stat-avg-presence">0</div><div class="label">เวลาเฉลี่ยที่คนอยู่ในกล้อง (วินาที)</div></div>
 </div>
 
-<h3>🏆 สินค้ายอดนิยม (Top Products)</h3>
+<h3><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v9l9 5 9-5V8"/><line x1="12" y1="13" x2="12" y2="22"/></svg>สินค้าในระบบ</h3>
+<div class="panel" style="max-height:140px; overflow-y:auto;">
+  <div id="catalog-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+</div>
+
+<h3 style="margin-top:14px;"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="0.9" fill="currentColor" stroke="none"/></svg>สถานะสินค้าขณะนี้ (Live)</h3>
 <div class="panel" style="max-height:220px; overflow-y:auto;">
-  <table><thead><tr><th>สินค้า</th><th>จำนวนครั้งที่แสดง</th></tr></thead><tbody id="top-products-body"></tbody></table>
+  <table><thead><tr><th>กล้อง</th><th>สินค้า</th><th>สถานะ</th><th>เวลาที่มีคนสนใจ (วินาที)</th></tr></thead><tbody id="live-states-body"></tbody></table>
 </div>
 
-<h3 style="margin-top:14px;">🕘 ปฏิสัมพันธ์ล่าสุด (Recent Interactions)</h3>
+<h3 style="margin-top:14px;"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>ประวัติการหยิบจับสินค้า (ย้อนหลัง)</h3>
+<div class="panel" style="max-height:220px; overflow-y:auto;">
+  <table><thead><tr><th>เวลา</th><th>กล้อง</th><th>สินค้า</th><th>ระยะเวลาที่ถือ (วินาที)</th></tr></thead><tbody id="hold-history-body"></tbody></table>
+</div>
+
+<h3 style="margin-top:14px;"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17.5" cy="9" r="3"/><path d="M15.7 13a5.5 5.5 0 0 1 5.8 7"/></svg>ประวัติช่วงเวลาที่คนอยู่ในกล้อง (ย้อนหลัง)</h3>
+<div class="panel" style="max-height:220px; overflow-y:auto;">
+  <table><thead><tr><th>เวลา</th><th>กล้อง</th><th>ระยะเวลาที่อยู่ในกล้อง (วินาที)</th></tr></thead><tbody id="presence-history-body"></tbody></table>
+</div>
+
+<h3 style="margin-top:14px;"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M8 5H5a3 3 0 0 0 3 4"/><path d="M16 5h3a3 3 0 0 1-3 4"/><line x1="12" y1="13" x2="12" y2="17"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="9" y1="17" x2="15" y2="17"/></svg>สินค้ายอดนิยม (จำนวนครั้งที่มีคนหยิบหรือถือ)</h3>
+<div class="panel" style="max-height:220px; overflow-y:auto;">
+  <table><thead><tr><th>สินค้า</th><th>จำนวนครั้งที่หยิบ/ถือ</th><th>เวลาสนใจรวม (วินาที)</th></tr></thead><tbody id="top-products-body"></tbody></table>
+</div>
+
+<h3 style="margin-top:14px;"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>ปฏิสัมพันธ์ล่าสุด (Recent Interactions)</h3>
 <div class="panel" style="max-height:320px; overflow-y:auto;">
   <table>
-    <thead><tr><th>เวลา</th><th>บูธ</th><th>กล้อง</th><th>สินค้า</th><th>ความมั่นใจ</th><th>คำถาม</th><th>คำตอบ</th></tr></thead>
+    <thead><tr><th>เวลา</th><th>บูธ</th><th>กล้อง</th><th>สินค้า</th><th>ความมั่นใจ</th></tr></thead>
     <tbody id="interactions-body"></tbody>
   </table>
 </div>
 
-<h3 style="margin-top:14px;">🩺 สถานะอุปกรณ์ / การแจ้งเตือน (Health &amp; Alerts)</h3>
+<h3 style="margin-top:14px;"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 13 7 13 9 18 15 6 17 13 22 13"/></svg>สถานะอุปกรณ์ / การแจ้งเตือน (Health &amp; Alerts)</h3>
 <div class="panel" style="max-height:220px; overflow-y:auto;">
   <table><thead><tr><th>เวลา</th><th>บูธ</th><th>อุปกรณ์</th><th>สถานะ</th><th>ข้อความ</th></tr></thead><tbody id="health-body"></tbody></table>
 </div>
 
+<script src="/static/icons.js"></script>
+<script src="/static/theme.js"></script>
 <script src="/static/dashboard.js"></script>
 </body>
 </html>

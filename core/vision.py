@@ -27,12 +27,15 @@ never blocks the others.
 
 from __future__ import annotations
 
+import re
+import sys
 import threading
 import time
 
 import cv2
 
 from core.localizer import ForegroundProposer, crop_box
+from core.tracker import PersonTracker
 
 FAIL_THRESHOLD = 20          # consecutive failed reads before a camera is flagged offline
 REOPEN_INTERVAL_SEC = 3.0    # how often to retry opening a dead camera
@@ -67,17 +70,56 @@ def _ascii_label(text: str) -> str:
     return text.upper() if text.isascii() else "PRODUCT"
 
 
-def discover_cameras(max_index: int = 8, max_found: int = 4) -> list[str]:
-    """Probe /dev/video* nodes and return the ones that actually deliver frames."""
+def _candidate_opens(device) -> list[tuple]:
+    """Different OpenCV/V4L2 builds disagree about which of "open by device
+    path" vs. "open by integer index" actually works — one build refuses
+    "/dev/videoN" with a "can't be used to capture by name" warning, another
+    refuses a plain index with "can't open camera by index", for the exact
+    same physical webcam. So try every reasonable (device, backend)
+    combination and let the caller use whichever one actually opens, instead
+    of betting on one. Index-based open is also the only option at all on
+    Windows/macOS, where /dev/video* doesn't exist."""
+    is_linux = sys.platform.startswith("linux")
+    if isinstance(device, str) and device.isdigit():
+        device = int(device)
+
+    candidates = []
+    if isinstance(device, int):
+        if is_linux:
+            candidates.append((f"/dev/video{device}", cv2.CAP_V4L2))
+            candidates.append((device, cv2.CAP_V4L2))
+        candidates.append((device, cv2.CAP_ANY))
+    else:  # explicit device path string, e.g. "/dev/video0"
+        if is_linux:
+            candidates.append((device, cv2.CAP_V4L2))
+            match = re.search(r"(\d+)$", device)
+            if match:
+                candidates.append((int(match.group(1)), cv2.CAP_V4L2))
+        candidates.append((device, cv2.CAP_ANY))
+    return candidates
+
+
+def _open_capture(device) -> cv2.VideoCapture:
+    for dev, backend in _candidate_opens(device):
+        cap = cv2.VideoCapture(dev, backend)
+        if cap.isOpened():
+            return cap
+        cap.release()
+    return cv2.VideoCapture(device)  # exhausted every candidate; caller checks isOpened()
+
+
+def discover_cameras(max_index: int = 8, max_found: int = 4) -> list[int]:
+    """Probe camera indices 0..max_index and return the ones that actually
+    deliver frames (works the same way on Linux/Windows/macOS, and covers a
+    laptop's built-in webcam, which is almost always index 0)."""
     found = []
     for i in range(max_index):
-        device = f"/dev/video{i}"
-        cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
+        cap = _open_capture(i)
         try:
             if cap.isOpened():
                 ok, frame = cap.read()
                 if ok and frame is not None:
-                    found.append(device)
+                    found.append(i)
         finally:
             cap.release()
         if len(found) >= max_found:
@@ -101,7 +143,8 @@ class CameraWorker(threading.Thread):
 
     def __init__(self, camera_id: str, device, model, allowed_classes: list[str],
                  recognizer=None, conf_threshold: float = 0.45, device_target="cpu",
-                 show_unknown: bool = True, on_frame=None, on_detections=None, on_status=None):
+                 show_unknown: bool = True, on_frame=None, on_detections=None, on_status=None,
+                 on_person_tracks=None):
         super().__init__(daemon=True)
         self.camera_id = camera_id
         self.device = device
@@ -113,6 +156,13 @@ class CameraWorker(threading.Thread):
         self.on_frame = on_frame or (lambda *a: None)
         self.on_detections = on_detections or (lambda *a: None)
         self.on_status = on_status or (lambda *a: None)
+        # Optional, defaults to a no-op: on_person_tracks(camera_id, visible_tracks,
+        # evicted_tracks). Purely additive — on_detections's signature/contents are
+        # unchanged (person boxes still never appear in it), so callers that don't
+        # set this (e.g. the desktop app via ui/qt_camera_bridge.py's typed Qt
+        # Signal(str, list)) need no changes at all.
+        self.on_person_tracks = on_person_tracks or (lambda *a: None)
+        self._person_tracker = PersonTracker()
 
         # Catalog keys that double as a YOLO/COCO class name get the cheap,
         # exact detection path; everything else (custom-trained products) is
@@ -132,7 +182,7 @@ class CameraWorker(threading.Thread):
         self._last_boxes: list[tuple[list[float], str, tuple[int, int, int]]] = []
 
     def _open(self) -> bool:
-        cap = cv2.VideoCapture(self.device, cv2.CAP_V4L2)
+        cap = _open_capture(self.device)
         if not cap.isOpened():
             cap.release()
             return False
@@ -246,6 +296,8 @@ class CameraWorker(threading.Thread):
                 self._last_boxes = []
                 try:
                     person_boxes, legacy_detections, claimed_boxes = self._run_yolo(frame)
+                    visible_tracks, evicted_tracks = self._person_tracker.update(person_boxes)
+                    self.on_person_tracks(self.camera_id, visible_tracks, evicted_tracks)
                     detections.extend(legacy_detections)
                     detections.extend(self._run_custom_recognition(frame, claimed_boxes))
                 except Exception as exc:
@@ -270,3 +322,12 @@ class CameraWorker(threading.Thread):
     def stop(self):
         self._running = False
         self.join(timeout=2)
+
+    def get_resolution(self) -> tuple[int, int] | None:
+        """Actual negotiated capture resolution, for diagnostics — None if
+        the camera isn't currently open."""
+        if self._cap is None:
+            return None
+        width = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        return (width, height) if width and height else None

@@ -1,6 +1,8 @@
 let externalInteractions = [];
 let externalHealth = [];
 
+const STATE_LABELS = { idle: 'นิ่ง (ไม่มีการขยับ)', held: 'มีคนถือ', unsettled: 'กำลังตั้งค่าเริ่มต้น' };
+
 function fmtTs(ts) {
     if (!ts) return '';
     return new Date(ts * 1000).toLocaleString('th-TH', { hour12: false });
@@ -19,49 +21,120 @@ function applyFilters(rows) {
     );
 }
 
-function syncSelect(select, values) {
+function syncSelect(select, values, labels) {
+    labels = labels || {};
     const current = select.value;
     select.innerHTML = '<option value="">ทั้งหมด</option>';
     for (const v of values) {
         const opt = document.createElement('option');
-        opt.value = v; opt.textContent = v;
+        opt.value = v; opt.textContent = labels[v] ? `${labels[v]} (${v})` : v;
         select.appendChild(opt);
     }
     select.value = values.includes(current) ? current : '';
 }
 
+function currentQuery() {
+    const eventId = document.getElementById('event-filter').value;
+    const boothId = document.getElementById('booth-filter').value;
+    const params = new URLSearchParams();
+    if (eventId) params.set('event_id', eventId);
+    if (boothId) params.set('booth_id', boothId);
+    return params.toString() ? `?${params.toString()}` : '';
+}
+
 async function refresh() {
-    const [interactions, health] = await Promise.all([
+    const query = currentQuery();
+    const [interactions, health, products, live, movers, presence, holdHistory, presenceHistory,
+           knownIds, events, booths] = await Promise.all([
         fetchLocal('/api/dashboard/interactions'),
         fetchLocal('/api/dashboard/health'),
+        fetchLocal('/api/products'),
+        fetchLocal('/api/dashboard/live'),
+        fetchLocal(`/api/dashboard/product_movers${query}`),
+        fetchLocal(`/api/dashboard/presence_stats${query}`),
+        fetchLocal(`/api/dashboard/product_hold_history${query}`),
+        fetchLocal(`/api/dashboard/presence_sessions${query}`),
+        fetchLocal('/api/dashboard/known_ids'),
+        fetchLocal('/api/registry/events'),
+        fetchLocal('/api/registry/booths'),
     ]);
     const allInteractions = interactions.concat(externalInteractions);
     const allHealth = health.concat(externalHealth);
 
-    const eventIds = [...new Set(allInteractions.concat(allHealth).map(r => r.event_id).filter(Boolean))].sort();
-    const boothIds = [...new Set(allInteractions.concat(allHealth).map(r => r.booth_id).filter(Boolean))].sort();
-    syncSelect(document.getElementById('event-filter'), eventIds);
-    syncSelect(document.getElementById('booth-filter'), boothIds);
+    // The registry (Events/Booths created via /settings) is the primary,
+    // curated source — known_ids (scans every log table) is unioned in as a
+    // fallback so pre-registry/orphaned log data is still selectable, just
+    // without a friendly name.
+    const eventLabels = Object.fromEntries(events.map(e => [e.id, e.name]));
+    const boothLabels = Object.fromEntries(booths.map(b => [b.id, b.name]));
+    const eventIds = [...new Set([
+        ...events.map(e => e.id),
+        ...knownIds.event_ids,
+        ...allInteractions.concat(allHealth).map(r => r.event_id).filter(Boolean),
+    ])].sort();
+    const boothIds = [...new Set([
+        ...booths.map(b => b.id),
+        ...knownIds.booth_ids,
+        ...allInteractions.concat(allHealth).map(r => r.booth_id).filter(Boolean),
+    ])].sort();
+    syncSelect(document.getElementById('event-filter'), eventIds, eventLabels);
+    syncSelect(document.getElementById('booth-filter'), boothIds, boothLabels);
+
+    const exportLink = document.getElementById('export-link');
+    exportLink.href = `/api/dashboard/export.xlsx${query}`;
 
     const filteredInteractions = applyFilters(allInteractions);
     const filteredHealth = applyFilters(allHealth);
 
-    const booths = new Set([...filteredInteractions, ...filteredHealth].map(r => r.booth_id));
+    const activeBoothIds = new Set([...filteredInteractions, ...filteredHealth].map(r => r.booth_id));
     const openAlerts = filteredHealth.filter(h => h.status === 'error');
     document.getElementById('stat-total').textContent = filteredInteractions.length;
     document.getElementById('stat-products').textContent = new Set(filteredInteractions.map(r => r.product_name)).size;
-    document.getElementById('stat-booths').textContent = booths.size;
+    document.getElementById('stat-booths').textContent = activeBoothIds.size;
     document.getElementById('stat-alerts').textContent = openAlerts.length;
+    document.getElementById('stat-people-now').textContent = live.people_now;
+    document.getElementById('stat-avg-presence').textContent = presence.avg_sec.toFixed(1);
 
-    const counts = {};
-    for (const r of filteredInteractions) counts[r.product_name] = (counts[r.product_name] || 0) + 1;
-    const topProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const catalogList = document.getElementById('catalog-list');
+    catalogList.innerHTML = '';
+    for (const p of products) {
+        const span = document.createElement('span');
+        span.className = 'pill';
+        span.textContent = p.name;
+        catalogList.appendChild(span);
+    }
+
+    const liveBody = document.getElementById('live-states-body');
+    liveBody.innerHTML = '';
+    for (const p of live.products) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.camera_id}</td><td>${p.product_name}</td>` +
+            `<td>${STATE_LABELS[p.state] || p.state}</td><td>${p.interest_seconds.toFixed(1)}</td>`;
+        liveBody.appendChild(tr);
+    }
+
     const topBody = document.getElementById('top-products-body');
     topBody.innerHTML = '';
-    for (const [name, count] of topProducts) {
+    for (const m of movers) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${name}</td><td>${count}</td>`;
+        tr.innerHTML = `<td>${m.product_name}</td><td>${m.mover_count}</td><td>${(m.total_interest_sec || 0).toFixed(1)}</td>`;
         topBody.appendChild(tr);
+    }
+
+    const holdBody = document.getElementById('hold-history-body');
+    holdBody.innerHTML = '';
+    for (const h of holdHistory) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${fmtTs(h.ts)}</td><td>${h.camera_id}</td><td>${h.product_name}</td><td>${h.duration_sec.toFixed(1)}</td>`;
+        holdBody.appendChild(tr);
+    }
+
+    const presenceBody = document.getElementById('presence-history-body');
+    presenceBody.innerHTML = '';
+    for (const p of presenceHistory) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${fmtTs(p.ts)}</td><td>${p.camera_id}</td><td>${p.duration_sec.toFixed(1)}</td>`;
+        presenceBody.appendChild(tr);
     }
 
     const interactionsBody = document.getElementById('interactions-body');
@@ -71,7 +144,7 @@ async function refresh() {
         const tr = document.createElement('tr');
         const conf = typeof r.confidence === 'number' ? (r.confidence * 100).toFixed(0) + '%' : '';
         tr.innerHTML = `<td>${fmtTs(r.ts)}</td><td>${r.booth_id || ''}</td><td>${r.camera_id || ''}</td>` +
-            `<td>${r.product_name || ''}</td><td>${conf}</td><td>${r.question || ''}</td><td>${r.answer || ''}</td>`;
+            `<td>${r.product_name || ''}</td><td>${conf}</td>`;
         interactionsBody.appendChild(tr);
     }
 
@@ -90,6 +163,25 @@ async function refresh() {
 document.getElementById('refresh-btn').addEventListener('click', refresh);
 document.getElementById('event-filter').addEventListener('change', refresh);
 document.getElementById('booth-filter').addEventListener('change', refresh);
+
+async function deleteRegistryScope(field, label, endpoint) {
+    const value = document.getElementById(field).value;
+    if (!value) { alert(`กรุณาเลือก ${label} ที่ต้องการลบก่อน`); return; }
+    if (!confirm(`ลบ ${label} "${value}" และข้อมูลที่บันทึกไว้ทั้งหมดหรือไม่? การกระทำนี้ย้อนกลับไม่ได้`)) return;
+    const res = await fetch(`${endpoint}/${value}`, { method: 'DELETE' });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'ล้มเหลว' }));
+        alert(`ลบไม่สำเร็จ: ${err.detail}`);
+        return;
+    }
+    document.getElementById(field).value = '';
+    await refresh();
+}
+
+document.getElementById('delete-event-btn').addEventListener('click',
+    () => deleteRegistryScope('event-filter', 'Event ID', '/api/registry/events'));
+document.getElementById('delete-booth-btn').addEventListener('click',
+    () => deleteRegistryScope('booth-filter', 'Booth ID', '/api/registry/booths'));
 
 document.getElementById('import-btn').addEventListener('click', () => {
     document.getElementById('import-file').click();

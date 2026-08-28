@@ -10,11 +10,12 @@ import time
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from core import database as db
+from core.export import build_workbook
 from core.recognizer import RECOMMENDED_SAMPLES
 from web.booth_manager import STREAM_FPS, BoothManager
 
@@ -62,6 +63,10 @@ def create_app(booth: BoothManager) -> FastAPI:
             "recommended_samples": RECOMMENDED_SAMPLES,
         })
 
+    @app.get("/settings")
+    def settings_page(request: Request):
+        return templates.TemplateResponse(request, "settings.html", {})
+
     # ------------------------------------------------------------ streaming
     @app.get("/stream/{camera_id}")
     def stream(camera_id: str):
@@ -83,16 +88,117 @@ def create_app(booth: BoothManager) -> FastAPI:
     def api_state():
         return booth.get_state()
 
-    @app.post("/api/ask")
-    def api_ask(payload: dict):
-        question = (payload.get("question") or "").strip()
-        if not question:
-            raise HTTPException(400, "กรุณาระบุคำถาม")
-        return booth.ask(question)
-
     @app.post("/api/readiness")
     def api_readiness():
         return booth.run_readiness()
+
+    # -------------------------------------------------------- booth settings
+    @app.get("/api/booth/settings")
+    def api_booth_settings():
+        return booth.get_settings()
+
+    # -------------------------------------------------------- event/booth registry
+    @app.get("/api/registry/events")
+    def api_list_events():
+        return db.list_events(booth.db_path)
+
+    @app.post("/api/registry/events")
+    def api_create_event(payload: dict):
+        from core.training import slugify
+
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise HTTPException(400, "กรุณาระบุชื่อ Event")
+        existing = {e["id"] for e in db.list_events(booth.db_path)}
+        event_id = slugify(name, prefix="event")
+        while event_id in existing:
+            event_id = f"{event_id}-{int(time.time() * 1000) % 10000}"
+        db.create_event(booth.db_path, event_id, name)
+        return {"id": event_id}
+
+    @app.put("/api/registry/events/{event_id}")
+    def api_rename_event(event_id: str, payload: dict):
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise HTTPException(400, "กรุณาระบุชื่อ Event")
+        db.rename_event(booth.db_path, event_id, name)
+        return {"ok": True}
+
+    @app.delete("/api/registry/events/{event_id}")
+    def api_delete_event(event_id: str):
+        db.delete_event(booth.db_path, event_id)
+        booth.activate_booth(booth.booth_id)  # refresh event_id if the active booth was a member
+        return {"ok": True}
+
+    @app.get("/api/registry/booths")
+    def api_list_booths():
+        return [{**b, "active": b["id"] == booth.booth_id} for b in db.list_booths(booth.db_path)]
+
+    @app.post("/api/registry/booths")
+    def api_create_booth(payload: dict):
+        from core.training import slugify
+
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise HTTPException(400, "กรุณาระบุชื่อบูธ")
+        existing = {b["id"] for b in db.list_booths(booth.db_path)}
+        booth_id = slugify(name, prefix="booth").upper()
+        while booth_id in existing:
+            booth_id = f"{booth_id}-{int(time.time() * 1000) % 10000}"
+        db.create_booth(booth.db_path, booth_id, name, payload.get("event_id") or None)
+        return {"id": booth_id}
+
+    @app.put("/api/registry/booths/{booth_id}")
+    def api_update_booth(booth_id: str, payload: dict):
+        if not db.get_booth(booth.db_path, booth_id):
+            raise HTTPException(404, "ไม่พบบูธนี้")
+        kwargs = {}
+        if "name" in payload:
+            kwargs["name"] = payload.get("name")
+        if "event_id" in payload:
+            kwargs["event_id"] = payload.get("event_id") or None  # "" or missing = unassign
+        db.update_booth(booth.db_path, booth_id, **kwargs)
+        if booth_id == booth.booth_id:
+            booth.activate_booth(booth_id)  # refresh live name/event_id
+        return {"ok": True}
+
+    @app.delete("/api/registry/booths/{booth_id}")
+    def api_delete_booth(booth_id: str):
+        if not db.get_booth(booth.db_path, booth_id):
+            raise HTTPException(404, "ไม่พบบูธนี้")
+        try:
+            booth.remove_booth(booth_id)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc))
+        return {"ok": True}
+
+    @app.post("/api/registry/booths/{booth_id}/activate")
+    def api_activate_booth(booth_id: str):
+        try:
+            booth.activate_booth(booth_id)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc))
+        return booth.get_settings()
+
+    @app.post("/api/booth/cameras")
+    def api_add_camera(payload: dict):
+        device = (payload.get("device") or "").strip()
+        if not device:
+            raise HTTPException(400, "กรุณาระบุกล้อง เช่น 0 หรือ /dev/video0")
+        camera_id = booth.add_camera(device)
+        return {"camera_id": camera_id}
+
+    @app.delete("/api/booth/cameras/{camera_id}")
+    def api_remove_camera(camera_id: str):
+        if camera_id not in booth.camera_ids:
+            raise HTTPException(404, "ไม่พบกล้องนี้")
+        booth.remove_camera(camera_id)
+        return {"ok": True}
+
+    @app.post("/api/booth/reset_data")
+    def api_reset_booth_data():
+        booth.reset_data()
+        return {"ok": True}
 
     # ------------------------------------------------------------- products API
     @app.get("/api/products")
@@ -113,7 +219,19 @@ def create_app(booth: BoothManager) -> FastAPI:
         key = slugify(name)
         while booth.catalog.get(key):
             key = f"{key}-{int(time.time() * 1000) % 10000}"
-        booth.catalog.add_product(key, name, payload.get("tagline", ""), payload.get("description", ""))
+        booth.catalog.add_product(key, name, payload.get("tagline", ""), payload.get("description", ""),
+                                   payload.get("faq"), payload.get("price", ""))
+        return {"key": key}
+
+    @app.put("/api/products/{key}")
+    def api_update_product(key: str, payload: dict):
+        if not booth.catalog.get(key):
+            raise HTTPException(404, "ไม่พบสินค้านี้")
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise HTTPException(400, "กรุณาระบุชื่อสินค้า")
+        booth.catalog.add_product(key, name, payload.get("tagline", ""), payload.get("description", ""),
+                                   payload.get("faq"), payload.get("price", ""))
         return {"key": key}
 
     @app.delete("/api/products/{key}")
@@ -169,5 +287,49 @@ def create_app(booth: BoothManager) -> FastAPI:
     @app.get("/api/dashboard/health")
     def api_dashboard_health(event_id: str | None = None, booth_id: str | None = None):
         return db.query_health_events(booth.db_path, event_id, booth_id)
+
+    @app.get("/api/dashboard/live")
+    def api_dashboard_live():
+        return booth.get_live_analytics()
+
+    @app.get("/api/dashboard/product_movers")
+    def api_dashboard_product_movers(event_id: str | None = None, booth_id: str | None = None):
+        return db.query_product_movers(booth.db_path, event_id, booth_id)
+
+    @app.get("/api/dashboard/presence_stats")
+    def api_dashboard_presence_stats(event_id: str | None = None, booth_id: str | None = None):
+        return db.query_presence_stats(booth.db_path, event_id, booth_id)
+
+    @app.get("/api/dashboard/product_hold_history")
+    def api_dashboard_product_hold_history(event_id: str | None = None, booth_id: str | None = None):
+        return db.query_product_hold_events(booth.db_path, event_id, booth_id)
+
+    @app.get("/api/dashboard/presence_sessions")
+    def api_dashboard_presence_sessions(event_id: str | None = None, booth_id: str | None = None):
+        return db.query_presence_sessions(booth.db_path, event_id, booth_id)
+
+    @app.get("/api/dashboard/known_ids")
+    def api_dashboard_known_ids():
+        return db.query_known_ids(booth.db_path)
+
+    @app.post("/api/dashboard/delete_scope")
+    def api_dashboard_delete_scope(payload: dict):
+        scope_booth_id = (payload.get("booth_id") or "").strip() or None
+        scope_event_id = (payload.get("event_id") or "").strip() or None
+        if not scope_booth_id and not scope_event_id:
+            raise HTTPException(400, "กรุณาระบุ booth_id หรือ event_id")
+        db.delete_scope_data(booth.db_path, booth_id=scope_booth_id, event_id=scope_event_id)
+        return {"ok": True}
+
+    @app.get("/api/dashboard/export.xlsx")
+    def api_dashboard_export(event_id: str | None = None, booth_id: str | None = None):
+        content = build_workbook(booth.db_path, event_id, booth_id)
+        scope = booth_id or event_id or "all"
+        filename = f"mongdee-export-{scope}-{int(time.time())}.xlsx"
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     return app

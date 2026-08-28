@@ -39,12 +39,14 @@ class ProductCatalog:
         return self.products.get(class_name)
 
     def add_product(self, key: str, name: str, tagline: str = "", description: str = "",
-                     faq: list[dict] | None = None) -> None:
+                     faq: list[dict] | None = None, price: str = "") -> None:
         """Register a new (or update an existing) product and persist to disk —
-        used by the AI Trainer when someone trains a brand-new product."""
+        used by the AI Trainer when someone trains a brand-new product, and to
+        edit an existing product's details afterwards (upsert by key)."""
         self.products[key] = {
             "name": name,
             "tagline": tagline,
+            "price": price,
             "description": description,
             "faq": faq or [],
         }

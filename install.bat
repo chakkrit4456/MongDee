@@ -43,7 +43,7 @@ if "%GPU_MODE%"=="1" (
 )
 
 echo [4/5] Installing remaining libraries (OpenCV, YOLO, PySide6, voice, web server, ...)...
-pip install opencv-python ultralytics PySide6 pyttsx3 SpeechRecognition sounddevice numpy fastapi "uvicorn[standard]" jinja2 python-multipart --quiet
+pip install opencv-python ultralytics PySide6 pyttsx3 SpeechRecognition sounddevice numpy fastapi "uvicorn[standard]" jinja2 python-multipart openpyxl --quiet
 
 echo [5/5] Creating shortcuts...
 (

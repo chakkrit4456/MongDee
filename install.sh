@@ -47,7 +47,7 @@ fi
 
 echo "[4/5] กำลังติดตั้งไลบรารีที่เหลือ (OpenCV, YOLO, PySide6, เสียงพูด ฯลฯ)..."
 pip install opencv-python ultralytics PySide6 pyttsx3 SpeechRecognition sounddevice numpy \
-    fastapi "uvicorn[standard]" jinja2 python-multipart --quiet
+    fastapi "uvicorn[standard]" jinja2 python-multipart openpyxl --quiet
 
 echo "[5/5] กำลังสร้างทางลัดเปิดแอป..."
 cat > run_launcher.sh <<EOF

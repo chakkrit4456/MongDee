@@ -22,9 +22,13 @@ VIDEO_SAMPLE_INTERVAL_SEC = 0.4
 ProgressCallback = Callable[[int, int], None]
 
 
-def slugify(name: str) -> str:
+def slugify(name: str, prefix: str = "product") -> str:
+    """ASCII-safe id from a (often Thai) display name. `prefix` names the
+    fallback used when the name has no ASCII characters at all to slugify
+    (e.g. an all-Thai booth/event name) — callers outside the product
+    catalog should pass their own so the fallback id reads sensibly."""
     ascii_part = re.sub(r"[^a-zA-Z0-9]+", "-", name).strip("-").lower()
-    return ascii_part or f"product-{uuid.uuid4().hex[:8]}"
+    return ascii_part or f"{prefix}-{uuid.uuid4().hex[:8]}"
 
 
 def auto_crop(frame_bgr, model, model_device):
