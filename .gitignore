@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+
+# regenerated automatically at runtime — not source
+data/gallery/
+data/booth_settings.json
+data/*.db-journal
