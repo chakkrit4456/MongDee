@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>MONGDEE AI Dashboard & Analytics</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="top-bar">
+  <a href="/" style="color:#999; text-decoration:none;">← MONGDEE AI Booth OS</a>
+  <div class="title">📊 AI Dashboard &amp; Analytics</div>
+  <div class="spacer"></div>
+  <label style="margin:0;">Event ID:</label>
+  <select id="event-filter"><option value="">ทั้งหมด</option></select>
+  <label style="margin:0;">Booth ID:</label>
+  <select id="booth-filter"><option value="">ทั้งหมด</option></select>
+  <input type="file" id="import-file" accept="application/json" style="width:auto; display:none;">
+  <button id="import-btn">📂 นำเข้าข้อมูลบูธอื่น</button>
+  <button id="refresh-btn">🔄 รีเฟรช</button>
+</div>
+
+<div class="cards-row">
+  <div class="stat-card"><div class="value" id="stat-total">0</div><div class="label">Total Interactions</div></div>
+  <div class="stat-card"><div class="value" id="stat-products">0</div><div class="label">Unique Products Shown</div></div>
+  <div class="stat-card"><div class="value" id="stat-booths">0</div><div class="label">Active Booths</div></div>
+  <div class="stat-card"><div class="value" id="stat-alerts">0</div><div class="label">Open Alerts</div></div>
+</div>
+
+<h3>🏆 สินค้ายอดนิยม (Top Products)</h3>
+<div class="panel" style="max-height:220px; overflow-y:auto;">
+  <table><thead><tr><th>สินค้า</th><th>จำนวนครั้งที่แสดง</th></tr></thead><tbody id="top-products-body"></tbody></table>
+</div>
+
+<h3 style="margin-top:14px;">🕘 ปฏิสัมพันธ์ล่าสุด (Recent Interactions)</h3>
+<div class="panel" style="max-height:320px; overflow-y:auto;">
+  <table>
+    <thead><tr><th>เวลา</th><th>บูธ</th><th>กล้อง</th><th>สินค้า</th><th>ความมั่นใจ</th><th>คำถาม</th><th>คำตอบ</th></tr></thead>
+    <tbody id="interactions-body"></tbody>
+  </table>
+</div>
+
+<h3 style="margin-top:14px;">🩺 สถานะอุปกรณ์ / การแจ้งเตือน (Health &amp; Alerts)</h3>
+<div class="panel" style="max-height:220px; overflow-y:auto;">
+  <table><thead><tr><th>เวลา</th><th>บูธ</th><th>อุปกรณ์</th><th>สถานะ</th><th>ข้อความ</th></tr></thead><tbody id="health-body"></tbody></table>
+</div>
+
+<script src="/static/dashboard.js"></script>
+</body>
+</html>

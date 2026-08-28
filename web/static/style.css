@@ -1,0 +1,107 @@
+* { box-sizing: border-box; }
+body {
+    background: #101218;
+    color: white;
+    font-family: -apple-system, "Segoe UI", "Noto Sans Thai", Sans, sans-serif;
+    margin: 0;
+    padding: 16px;
+}
+a { color: #7fd3ff; }
+h1, h2, h3 { margin: 0 0 8px 0; }
+.top-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.top-bar .title { font-size: 20px; font-weight: bold; }
+.spacer { flex: 1; }
+.pill {
+    background: #444;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+}
+.pill.ready { background: #1e6b3a; }
+.pill.not-ready { background: #7a1f1f; }
+.legend { padding: 4px 0 10px 2px; font-size: 13px; color: #ccc; }
+.legend span.dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+.dot-product { background: #2ecc71; }
+.dot-person { background: #ff3c3c; }
+.dot-unknown { background: #969696; }
+
+button, .btn {
+    background: #20232c;
+    border: 1px solid #383c48;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+button:hover, .btn:hover { background: #2b2f3a; }
+button:disabled { color: #555; cursor: not-allowed; }
+input[type=text], input[type=file], textarea, select {
+    background: #181a20;
+    border: 1px solid #30333d;
+    border-radius: 6px;
+    color: white;
+    padding: 8px;
+    font-size: 14px;
+    width: 100%;
+}
+label { font-size: 13px; color: #aaa; display: block; margin: 8px 0 4px; }
+
+.panel {
+    background: #181a20;
+    border: 1px solid #30333d;
+    border-radius: 12px;
+    padding: 14px;
+}
+.grid { display: grid; gap: 12px; }
+.body-row { display: flex; gap: 12px; align-items: flex-start; }
+.cam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; flex: 2; }
+.cam-panel img { width: 100%; border-radius: 8px; background: #111318; display: block; }
+.cam-panel .cam-title { font-weight: bold; padding: 6px 0; display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.status-online { background: #2ecc71; }
+.status-offline { background: #e74c3c; }
+.status-error { background: #e67e22; }
+.status-unknown { background: #7f8c8d; }
+.status-text { color: #aaa; font-size: 12px; }
+
+.assistant-panel { flex: 1; min-width: 300px; }
+.product-name { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+.product-tagline { color: #7fd3ff; margin-bottom: 6px; }
+.product-desc { color: #ccc; margin-bottom: 8px; }
+.product-source { color: #888; font-size: 11px; margin-bottom: 10px; }
+.ask-row { display: flex; gap: 8px; }
+.answer-text { color: #ffe08a; padding-top: 8px; }
+.history-list, .alerts-list { max-height: 220px; overflow-y: auto; font-size: 13px; }
+.history-list div, .alerts-list div { padding: 3px 0; border-bottom: 1px solid #23262e; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #23262e; }
+th { color: #999; }
+
+.cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 10px 0; }
+.stat-card { background: #181a20; border: 1px solid #30333d; border-radius: 10px; padding: 12px; }
+.stat-card .value { font-size: 26px; font-weight: bold; }
+.stat-card .label { color: #999; font-size: 12px; }
+
+.modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.modal { background: #101218; border: 1px solid #30333d; border-radius: 12px; padding: 20px; max-width: 520px; width: 90%; max-height: 80vh; overflow-y: auto; }
+.hidden { display: none !important; }
+
+.trainer-layout { display: flex; gap: 14px; align-items: flex-start; }
+.product-list { width: 320px; }
+.product-list-item { padding: 8px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; }
+.product-list-item:hover { background: #20232c; }
+.product-list-item.selected { background: #2b2f3a; }
+.progress-bar { background: #181a20; border: 1px solid #30333d; border-radius: 6px; height: 20px; overflow: hidden; margin: 6px 0; }
+.progress-bar-fill { background: #2ecc71; height: 100%; width: 0%; transition: width 0.2s; }

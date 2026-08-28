@@ -1,0 +1,13 @@
+opencv-python
+ultralytics
+torch
+torchvision
+PySide6
+pyttsx3
+SpeechRecognition
+sounddevice
+numpy
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart

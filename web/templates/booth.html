@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>MONGDEE AI Booth OS — Booth</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="top-bar">
+  <a href="/" style="color:#999; text-decoration:none;">← MONGDEE AI Booth OS</a>
+  <div class="title">{{ booth_name }} &middot; {{ event_id }}</div>
+  <div class="spacer"></div>
+  <span id="readiness-pill" class="pill">ยังไม่ตรวจสอบ</span>
+  <button id="readiness-btn">🔍 ตรวจสอบความพร้อมบูธ</button>
+  <a class="btn" href="/dashboard" style="text-decoration:none;">📊 Dashboard</a>
+  <a class="btn" href="/trainer" style="text-decoration:none;">🎓 AI Trainer</a>
+</div>
+
+<div class="legend">
+  <span class="dot dot-product"></span>สินค้า (Product)
+  <span class="dot dot-person"></span>คน (Person)
+  <span class="dot dot-unknown"></span>พบวัตถุแต่ยังไม่รู้จัก (ควรเทรน)
+</div>
+
+<div class="body-row">
+  <div class="cam-grid" id="cam-grid">
+    {% for cam_id in camera_ids %}
+    <div class="panel cam-panel">
+      <div class="cam-title">
+        <span class="status-dot status-unknown" id="dot-{{ cam_id }}"></span>
+        {{ cam_id }}
+      </div>
+      <img src="/stream/{{ cam_id }}" alt="{{ cam_id }}">
+      <div class="status-text" id="status-{{ cam_id }}">กำลังเชื่อมต่อ...</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="panel assistant-panel">
+    <h3>🤖 AI Product Assistant</h3>
+    <div class="product-name" id="product-name">ยังไม่พบสินค้า — วางสินค้าในกรอบกล้องเพื่อเริ่มต้น</div>
+    <div class="product-tagline" id="product-tagline"></div>
+    <div class="product-desc" id="product-desc"></div>
+    <div class="product-source" id="product-source"></div>
+
+    <label>💬 พิมพ์คำถามเกี่ยวกับสินค้านี้</label>
+    <div class="ask-row">
+      <input type="text" id="question-input" placeholder="เช่น ราคาเท่าไหร่ / มีสีอะไรบ้าง">
+      <button id="ask-btn">ถาม</button>
+    </div>
+    <div class="answer-text" id="answer-text"></div>
+
+    <label style="margin-top:14px;">🕘 ประวัติการโต้ตอบ</label>
+    <div class="history-list" id="history-list"></div>
+  </div>
+</div>
+
+<h3 style="margin-top:16px;">🔔 การแจ้งเตือนล่าสุด (Booth Health Monitoring)</h3>
+<div class="panel alerts-list" id="alerts-list"></div>
+
+<div class="modal-backdrop hidden" id="readiness-modal">
+  <div class="modal">
+    <h3 id="readiness-headline">ผลการตรวจสอบความพร้อมของบูธ</h3>
+    <div id="readiness-list"></div>
+    <button style="margin-top:12px;" onclick="document.getElementById('readiness-modal').classList.add('hidden')">ปิด</button>
+  </div>
+</div>
+
+<script src="/static/booth.js"></script>
+</body>
+</html>

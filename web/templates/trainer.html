@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>MONGDEE AI Trainer</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="top-bar">
+  <a href="/" style="color:#999; text-decoration:none;">← MONGDEE AI Booth OS</a>
+  <div class="title">🎓 เทรน AI ให้รู้จักสินค้าจริง</div>
+</div>
+<p style="color:#999;">
+  อัปโหลดรูปภาพหรือวิดีโอของสินค้าแต่ละชิ้น ระบบจะเรียนรู้ทันทีโดยไม่ต้องเทรนโมเดลใหม่ —
+  ยิ่งอัปโหลดมาก ความแม่นยำยิ่งสูงขึ้น แนะนำอย่างน้อย 15 ภาพต่อสินค้า จากหลายมุมและสภาพแสงที่ต่างกัน
+</p>
+
+<div class="trainer-layout">
+  <div class="panel product-list">
+    <h3>รายการสินค้า</h3>
+    <div id="product-list"></div>
+    <button id="add-product-btn" style="margin-top:10px; width:100%;">➕ เพิ่มสินค้าใหม่</button>
+  </div>
+
+  <div class="panel" style="flex:1;">
+    <div id="detail-empty">เลือกสินค้าทางซ้าย เพื่อเริ่มอัปโหลดข้อมูลเทรน</div>
+    <div id="detail-content" class="hidden">
+      <h3 id="detail-title"></h3>
+      <div id="detail-status" style="color:#ccc; margin-bottom:6px;"></div>
+      <div class="progress-bar"><div class="progress-bar-fill" id="sample-progress"></div></div>
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <div style="flex:1;">
+          <label>📁 อัปโหลดรูปภาพ (เลือกได้หลายไฟล์)</label>
+          <input type="file" id="images-input" accept="image/*" multiple>
+        </div>
+        <div style="flex:1;">
+          <label>🎞️ อัปโหลดวิดีโอ</label>
+          <input type="file" id="video-input" accept="video/*">
+        </div>
+      </div>
+
+      <div class="progress-bar hidden" id="import-progress-wrap"><div class="progress-bar-fill" id="import-progress"></div></div>
+      <div id="import-log" style="color:#7fd3ff; margin-top:6px;"></div>
+
+      <button id="clear-samples-btn" style="margin-top:14px;">🗑️ ลบข้อมูลเทรนทั้งหมดของสินค้านี้</button>
+
+      <h3 style="margin-top:16px;">▶️ ทดสอบด้วยกล้องสด</h3>
+      <p style="color:#888; font-size:12px;">ใช้กล้องที่บูธกำลังรันอยู่ ไม่ต้องเปิดกล้องใหม่</p>
+      <select id="test-camera-select"></select>
+      <img id="test-camera-img" style="width:100%; border-radius:8px; margin-top:8px;">
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="add-modal">
+  <div class="modal">
+    <h3>เพิ่มสินค้าใหม่</h3>
+    <label>ชื่อสินค้า *</label>
+    <input type="text" id="new-name">
+    <label>แท็กไลน์</label>
+    <input type="text" id="new-tagline">
+    <label>รายละเอียด</label>
+    <textarea id="new-description" rows="3"></textarea>
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button id="add-confirm-btn">เพิ่มสินค้า</button>
+      <button onclick="document.getElementById('add-modal').classList.add('hidden')">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CAMERA_IDS = {{ camera_ids | tojson }};
+const RECOMMENDED_SAMPLES = {{ recommended_samples }};
+</script>
+<script src="/static/trainer.js"></script>
+</body>
+</html>
