@@ -175,10 +175,19 @@ label { font-size: 12.5px; color: var(--text-dim); display: block; margin: 10px 
     box-shadow: var(--shadow);
 }
 .grid { display: grid; gap: 12px; }
-.body-row { display: flex; gap: 14px; align-items: flex-start; }
-.cam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; flex: 2; }
+.cam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 340px)); gap: 14px; }
 .cam-panel img { width: 100%; border-radius: var(--radius-sm); background: #0a0b0f; display: block; }
 .cam-panel .cam-title { font-weight: 600; padding: 2px 0 8px; display: flex; align-items: center; gap: 7px; font-size: 13.5px; }
+.cam-actions { margin-left: auto; display: flex; gap: 4px; }
+.cam-icon-btn { padding: 4px 7px; }
+.cam-icon-btn .icon-inline { margin-right: 0; }
+.cam-panel:fullscreen, .cam-panel:-webkit-full-screen {
+    display: flex; flex-direction: column; justify-content: center;
+    background: #000; border-radius: 0; border: none;
+}
+.cam-panel:fullscreen img, .cam-panel:-webkit-full-screen img {
+    width: auto; max-width: 100%; max-height: 85vh; margin: 0 auto;
+}
 .status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .status-online { background: var(--success); box-shadow: 0 0 6px rgba(52, 211, 153, 0.7); }
 .status-offline { background: var(--danger); }
@@ -187,6 +196,7 @@ label { font-size: 12.5px; color: var(--text-dim); display: block; margin: 10px 
 .status-text { color: var(--text-dim); font-size: 12px; margin-top: 6px; }
 
 .assistant-panel { flex: 1; min-width: 300px; }
+.product-view-panel { max-width: 640px; margin: 8px auto 0; }
 .product-name { font-size: 19px; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.01em; }
 .product-tagline { color: var(--accent); margin-bottom: 6px; font-size: 13.5px; }
 .product-desc { color: var(--text-dim); margin-bottom: 8px; font-size: 14px; }

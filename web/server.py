@@ -50,6 +50,22 @@ def create_app(booth: BoothManager) -> FastAPI:
             "event_id": booth.event_id, "camera_ids": booth.camera_ids,
         })
 
+    @app.get("/product-view")
+    def product_view_page(request: Request):
+        return templates.TemplateResponse(request, "product_view.html", {
+            "booth_id": booth.booth_id, "booth_name": booth.booth_name,
+            "event_id": booth.event_id, "camera_ids": booth.camera_ids,
+        })
+
+    @app.get("/booth/camera/{camera_id}")
+    def booth_camera_page(request: Request, camera_id: str):
+        if camera_id not in booth.camera_ids:
+            raise HTTPException(404, "ไม่พบกล้องนี้")
+        return templates.TemplateResponse(request, "camera_view.html", {
+            "booth_id": booth.booth_id, "booth_name": booth.booth_name,
+            "event_id": booth.event_id, "camera_id": camera_id,
+        })
+
     @app.get("/dashboard")
     def dashboard_page(request: Request):
         return templates.TemplateResponse(request, "dashboard.html", {

@@ -16,7 +16,7 @@ cd MongDee
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
+source .venv/Scripts/activate
 pip install -r requirements.txt
 ```
 
@@ -37,7 +37,7 @@ python web_server.py --host 0.0.0.0 --port 8000
 
 ตัวเลือกเพิ่มเติม: `--booth-id`, `--booth-name`, `--event-id`, `--cameras /dev/video0,/dev/video2` (ไม่ระบุ = ค้นหากล้องอัตโนมัติ), `--no-open` (ไม่เปิดเบราว์เซอร์อัตโนมัติ)
 
-หน้าเว็บที่ได้: `/booth` (สตรีมกล้อง + ข้อมูลสินค้า), `/dashboard` (วิเคราะห์ข้อมูล), `/trainer` (เทรน AI ให้รู้จักสินค้า) — เปิดพร้อมกันหลายแท็บ/หลายอุปกรณ์ได้
+หน้าเว็บที่ได้: `/booth` (สตรีมกล้องสด + ปุ่มเต็มจอ/เปิดกล้องแยกหน้าต่างต่อจอ), `/product-view` (ดูรายละเอียดสินค้าที่สแกนเจอ แยกหน้าต่างต่างหาก), `/dashboard` (วิเคราะห์ข้อมูล), `/trainer` (เทรน AI ให้รู้จักสินค้า) — เปิดพร้อมกันหลายแท็บ/หลายอุปกรณ์/หลายจอได้
 
 ### แบบ Desktop (PySide6)
 

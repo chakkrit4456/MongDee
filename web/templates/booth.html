@@ -14,6 +14,7 @@
   <span id="readiness-pill" class="pill">ยังไม่ตรวจสอบ</span>
   <button id="readiness-btn"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>ตรวจสอบความพร้อมบูธ</button>
   <button id="open-dashboard-btn" title="เปิดหน้า Dashboard อีกแท็บ พร้อมกันกับหน้านี้"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><line x1="10" y1="14" x2="21" y2="3"/></svg>เปิด Dashboard คู่กัน</button>
+  <button id="open-product-btn" title="เปิดหน้าดูสินค้าอีกหน้าต่าง — แสดงรายละเอียดสินค้าที่สแกนเจอ ย้ายไปแสดงอีกจอได้"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>เปิดหน้าดูสินค้า</button>
   <a class="btn" href="/dashboard" style="text-decoration:none;"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="19" y1="20" x2="19" y2="14"/></svg>Dashboard</a>
   <a class="btn" href="/trainer" style="text-decoration:none;"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5-10-5z"/><path d="M6 11.5V17c0 1.5 3 3 6 3s6-1.5 6-3v-5.5"/><path d="M22 9v6"/></svg>AI Trainer</a>
   <a class="btn" href="/settings" style="text-decoration:none;"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>ตั้งค่า</a>
@@ -26,36 +27,25 @@
   <span class="dot dot-unknown"></span>พบวัตถุแต่ยังไม่รู้จัก (ควรเทรน)
 </div>
 
-<div class="body-row">
-  <div class="cam-grid" id="cam-grid">
-    {% for cam_id in camera_ids %}
-    <div class="panel cam-panel">
-      <div class="cam-title">
-        <span class="status-dot status-unknown" id="dot-{{ cam_id }}"></span>
-        {{ cam_id }}
+<div class="cam-grid" id="cam-grid">
+  {% for cam_id in camera_ids %}
+  <div class="panel cam-panel" id="panel-{{ cam_id }}">
+    <div class="cam-title">
+      <span class="status-dot status-unknown" id="dot-{{ cam_id }}"></span>
+      {{ cam_id }}
+      <div class="cam-actions">
+        <button class="cam-icon-btn" data-action="popout" data-cam="{{ cam_id }}" title="เปิดกล้องนี้ในหน้าต่างใหม่ (ย้ายไปแสดงอีกจอได้)"><svg class="icon-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+        <button class="cam-icon-btn" data-action="fullscreen" data-cam="{{ cam_id }}" title="ดูกล้องนี้แบบเต็มจอ"><svg class="icon-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
       </div>
-      <img src="/stream/{{ cam_id }}" alt="{{ cam_id }}">
-      <div class="status-text" id="status-{{ cam_id }}">กำลังเชื่อมต่อ...</div>
     </div>
-    {% else %}
-    <div class="panel cam-panel">
-      <div class="status-text">ยังไม่พบกล้อง — เชื่อมต่อเว็บแคมแล้วรันเซิร์ฟเวอร์ใหม่อีกครั้ง</div>
-    </div>
-    {% endfor %}
+    <img src="/stream/{{ cam_id }}" alt="{{ cam_id }}">
+    <div class="status-text" id="status-{{ cam_id }}">กำลังเชื่อมต่อ...</div>
   </div>
-
-  <div class="panel assistant-panel">
-    <h3><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="0.9" fill="currentColor" stroke="none"/></svg>ข้อมูลสินค้า</h3>
-    <div class="product-name" id="product-name">ยังไม่พบสินค้า — วางสินค้าในกรอบกล้องเพื่อเริ่มต้น</div>
-    <div class="product-tagline" id="product-tagline"></div>
-    <div class="product-price" id="product-price"></div>
-    <div class="product-desc" id="product-desc"></div>
-    <div class="product-source" id="product-source"></div>
-    <div class="faq-list" id="faq-list"></div>
-
-    <label style="margin-top:14px;"><svg class="icon-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>ประวัติการโต้ตอบ</label>
-    <div class="history-list" id="history-list"></div>
+  {% else %}
+  <div class="panel cam-panel">
+    <div class="status-text">ยังไม่พบกล้อง — เชื่อมต่อเว็บแคมแล้วรันเซิร์ฟเวอร์ใหม่อีกครั้ง</div>
   </div>
+  {% endfor %}
 </div>
 
 <h3 style="margin-top:16px;"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>การแจ้งเตือนล่าสุด (Booth Health Monitoring)</h3>
@@ -71,6 +61,7 @@
 
 <script src="/static/icons.js"></script>
 <script src="/static/theme.js"></script>
+<script src="/static/cam_grid.js"></script>
 <script src="/static/booth.js"></script>
 </body>
 </html>
