@@ -55,16 +55,17 @@ class CameraPanel(QFrame):
 
         self.video = QLabel("กำลังเชื่อมต่อ...")
         self.video.setAlignment(Qt.AlignCenter)
-        self.video.setMinimumSize(320, 240)
+        self.video.setMinimumSize(400, 300)
+        self.video.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.video.setStyleSheet(
-            "QLabel { background: #111318; color: #888; border-radius: 10px; font-size: 14px; }"
+            "QLabel { background: #111318; color: #aeb4c0; border-radius: 10px; font-size: 15px; }"
         )
 
         self.dot = QLabel("●")
         self.dot.setStyleSheet(f"color: {STATUS_COLORS['unknown']}; font-size: 16px;")
 
         title = QLabel(f"{camera_id}  ({device})")
-        title.setFont(QFont("Sans", 10, QFont.Bold))
+        title.setFont(QFont("Sans", 11, QFont.Bold))
         title.setStyleSheet("color: white;")
 
         header = QHBoxLayout()
@@ -73,9 +74,11 @@ class CameraPanel(QFrame):
         header.addStretch(1)
 
         self.status_label = QLabel("กำลังเชื่อมต่อ...")
-        self.status_label.setStyleSheet("color: #aaaaaa; font-size: 11px;")
+        self.status_label.setStyleSheet("color: #b7bdc9; font-size: 12px;")
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(9)
         layout.addLayout(header)
         layout.addWidget(self.video, 1)
         layout.addWidget(self.status_label)
@@ -102,7 +105,8 @@ class ReadinessDialog(QDialog):
     def __init__(self, report: dict, parent=None):
         super().__init__(parent)
         self.setWindowTitle("ผลการตรวจสอบความพร้อมของบูธ (Booth Readiness Check)")
-        self.setMinimumWidth(480)
+        self.resize(680, 480)
+        self.setMinimumSize(560, 400)
 
         layout = QVBoxLayout(self)
 
@@ -152,7 +156,8 @@ class MainWindow(QWidget):
         self.current_product_key: str | None = None
 
         self.setWindowTitle(f"MONGDEE AI Booth OS — {booth_name}")
-        self.resize(1440, 860)
+        self.resize(1600, 960)
+        self.setMinimumSize(1180, 720)
         self._build_ui(camera_devices)
         self._create_workers(camera_devices, model_device)
 
@@ -163,10 +168,12 @@ class MainWindow(QWidget):
     # ------------------------------------------------------------------ UI
     def _build_ui(self, camera_devices):
         root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 16)
+        root.setSpacing(10)
 
         top_bar = QHBoxLayout()
         title = QLabel(f"MONGDEE AI Booth OS  •  Booth: {self.booth_name} ({self.booth_id})  •  Event: {self.event_id}")
-        title.setFont(QFont("Sans", 13, QFont.Bold))
+        title.setFont(QFont("Sans", 16, QFont.Bold))
         title.setStyleSheet("color: white;")
         top_bar.addWidget(title)
         top_bar.addStretch(1)
@@ -198,18 +205,29 @@ class MainWindow(QWidget):
         root.addWidget(legend)
 
         body = QHBoxLayout()
+        body.setSpacing(14)
 
         cam_grid_widget = QWidget()
         self.cam_grid = QGridLayout(cam_grid_widget)
+        self.cam_grid.setContentsMargins(0, 0, 0, 0)
+        self.cam_grid.setHorizontalSpacing(12)
+        self.cam_grid.setVerticalSpacing(12)
         cols = 2 if len(camera_devices) > 1 else 1
         for i, (camera_id, device) in enumerate(camera_devices):
             panel = CameraPanel(camera_id, device)
             self.camera_panels[camera_id] = panel
             self.camera_status[camera_id] = "unknown"
             self.cam_grid.addWidget(panel, i // cols, i % cols)
-        body.addWidget(cam_grid_widget, 2)
+        for column in range(cols):
+            self.cam_grid.setColumnStretch(column, 1)
+        rows = max(1, (len(camera_devices) + cols - 1) // cols)
+        for row in range(rows):
+            self.cam_grid.setRowStretch(row, 1)
+        body.addWidget(cam_grid_widget, 3)
 
-        body.addWidget(self._build_assistant_panel(), 1)
+        assistant_panel = self._build_assistant_panel()
+        assistant_panel.setMinimumWidth(360)
+        body.addWidget(assistant_panel, 2)
 
         root.addLayout(body, 1)
 
@@ -218,31 +236,34 @@ class MainWindow(QWidget):
         root.addWidget(alerts_label)
 
         self.alerts_list = QListWidget()
-        self.alerts_list.setMaximumHeight(120)
-        root.addWidget(self.alerts_list)
+        self.alerts_list.setMinimumHeight(120)
+        root.addWidget(self.alerts_list, 0)
 
         self.setStyleSheet("""
-            QWidget { background: #101218; color: white; }
+            QWidget { background: #101218; color: white; font-size: 14px; }
             QPushButton { background: #20232c; border: 1px solid #383c48; border-radius: 8px;
-                          padding: 8px 14px; color: white; }
+                          padding: 10px 16px; color: white; min-height: 20px; }
             QPushButton:hover { background: #2b2f3a; }
             QLineEdit, QTextEdit { background: #181a20; border: 1px solid #30333d;
-                                    border-radius: 6px; color: white; padding: 6px; }
+                                    border-radius: 6px; color: white; padding: 9px; }
             QListWidget { background: #181a20; border: 1px solid #30333d; border-radius: 6px; color: white; }
+            QListWidget::item { padding: 6px; }
         """)
 
     def _build_assistant_panel(self) -> QWidget:
         panel = QFrame()
         panel.setStyleSheet("QFrame { background: #181a20; border: 1px solid #30333d; border-radius: 12px; }")
         layout = QVBoxLayout(panel)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(10)
 
         header = QLabel("🤖 AI Product Assistant")
-        header.setFont(QFont("Sans", 13, QFont.Bold))
+        header.setFont(QFont("Sans", 15, QFont.Bold))
         layout.addWidget(header)
 
         self.product_name_label = QLabel("ยังไม่พบสินค้า — วางสินค้าในกรอบกล้องเพื่อเริ่มต้น")
         self.product_name_label.setWordWrap(True)
-        self.product_name_label.setFont(QFont("Sans", 15, QFont.Bold))
+        self.product_name_label.setFont(QFont("Sans", 18, QFont.Bold))
         layout.addWidget(self.product_name_label)
 
         self.product_tagline_label = QLabel("")
@@ -256,7 +277,8 @@ class MainWindow(QWidget):
         layout.addWidget(self.product_desc_label)
 
         self.product_source_label = QLabel("")
-        self.product_source_label.setStyleSheet("color: #888888; font-size: 11px;")
+        self.product_source_label.setWordWrap(True)
+        self.product_source_label.setStyleSheet("color: #a2a8b3; font-size: 12px;")
         layout.addWidget(self.product_source_label)
 
         layout.addSpacing(8)

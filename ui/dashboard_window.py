@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFrame,
+    QHeaderView,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -43,9 +44,11 @@ class StatCard(QFrame):
     def __init__(self, title):
         super().__init__()
         self.setStyleSheet("QFrame { background: #181a20; border: 1px solid #30333d; border-radius: 10px; }")
+        self.setMinimumHeight(112)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 14)
         self.value_label = QLabel("0")
-        self.value_label.setFont(QFont("Sans", 22, QFont.Bold))
+        self.value_label.setFont(QFont("Sans", 28, QFont.Bold))
         title_label = QLabel(title)
         title_label.setStyleSheet("color: #999;")
         layout.addWidget(self.value_label)
@@ -61,7 +64,8 @@ class DashboardWindow(QWidget):
         self.db_path = db_path
         self.external_sources: list[dict] = []
         self.setWindowTitle("MONGDEE AI Dashboard & Analytics")
-        self.resize(1200, 800)
+        self.resize(1440, 900)
+        self.setMinimumSize(1050, 700)
         self._build_ui()
         self._default_event_id = default_event_id
         self.refresh()
@@ -72,9 +76,11 @@ class DashboardWindow(QWidget):
 
     def _build_ui(self):
         root = QVBoxLayout(self)
+        root.setContentsMargins(20, 18, 20, 18)
+        root.setSpacing(12)
 
         header = QLabel("📊 MONGDEE AI Dashboard & Analytics")
-        header.setFont(QFont("Sans", 16, QFont.Bold))
+        header.setFont(QFont("Sans", 19, QFont.Bold))
         root.addWidget(header)
 
         filter_row = QHBoxLayout()
@@ -101,6 +107,7 @@ class DashboardWindow(QWidget):
         root.addLayout(filter_row)
 
         cards_row = QHBoxLayout()
+        cards_row.setSpacing(12)
         self.card_total = StatCard("Total Interactions")
         self.card_products = StatCard("Unique Products Shown")
         self.card_booths = StatCard("Active Booths")
@@ -111,42 +118,46 @@ class DashboardWindow(QWidget):
 
         root.addWidget(self._section_label("🏆 สินค้ายอดนิยม (Top Products)"))
         self.top_products_table = self._make_table(["สินค้า", "จำนวนครั้งที่แสดง"])
-        self.top_products_table.setMaximumHeight(180)
-        root.addWidget(self.top_products_table)
+        self.top_products_table.setMinimumHeight(170)
+        root.addWidget(self.top_products_table, 2)
 
         root.addWidget(self._section_label("🕘 ปฏิสัมพันธ์ล่าสุด (Recent Interactions)"))
         self.interactions_table = self._make_table(
             ["เวลา", "บูธ", "กล้อง", "สินค้า", "ความมั่นใจ", "คำถาม", "คำตอบ"]
         )
-        root.addWidget(self.interactions_table, 1)
+        root.addWidget(self.interactions_table, 4)
 
         root.addWidget(self._section_label("🩺 สถานะอุปกรณ์ / การแจ้งเตือน (Health & Alerts)"))
         self.health_table = self._make_table(["เวลา", "บูธ", "อุปกรณ์", "สถานะ", "ข้อความ"])
-        self.health_table.setMaximumHeight(180)
-        root.addWidget(self.health_table)
+        self.health_table.setMinimumHeight(170)
+        root.addWidget(self.health_table, 2)
 
         self.setStyleSheet("""
-            QWidget { background: #101218; color: white; }
+            QWidget { background: #101218; color: white; font-size: 14px; }
             QPushButton { background: #20232c; border: 1px solid #383c48; border-radius: 8px;
-                          padding: 6px 12px; color: white; }
+                          padding: 10px 16px; color: white; min-height: 20px; }
             QPushButton:hover { background: #2b2f3a; }
             QComboBox { background: #181a20; border: 1px solid #30333d; border-radius: 6px;
-                        padding: 4px 8px; color: white; }
+                        padding: 8px 10px; color: white; min-height: 20px; }
             QTableWidget { background: #181a20; border: 1px solid #30333d; color: white;
-                           gridline-color: #30333d; }
-            QHeaderView::section { background: #20232c; color: white; border: none; padding: 4px; }
+                           gridline-color: #30333d; alternate-background-color: #15171d; }
+            QTableWidget::item { padding: 7px; }
+            QHeaderView::section { background: #20232c; color: white; border: none; padding: 8px; }
         """)
 
     def _section_label(self, text):
         label = QLabel(text)
-        label.setFont(QFont("Sans", 11, QFont.Bold))
+        label.setFont(QFont("Sans", 13, QFont.Bold))
         label.setStyleSheet("padding-top: 8px;")
         return label
 
     def _make_table(self, headers):
         table = QTableWidget(0, len(headers))
         table.setHorizontalHeaderLabels(headers)
-        table.horizontalHeader().setStretchLastSection(True)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.verticalHeader().setDefaultSectionSize(34)
+        table.verticalHeader().setVisible(False)
+        table.setAlternatingRowColors(True)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
         return table
 

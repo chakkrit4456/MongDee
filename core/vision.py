@@ -41,6 +41,8 @@ FAIL_THRESHOLD = 20          # consecutive failed reads before a camera is flagg
 REOPEN_INTERVAL_SEC = 3.0    # how often to retry opening a dead camera
 DETECT_EVERY_N_FRAMES = 2    # run detection every Nth frame to keep multi-camera FPS reasonable
 MIN_CROP_SIDE_PX = 24        # ignore foreground blobs too small to embed meaningfully
+AI_RECOVERY_SUCCESS_COUNT = 3  # successful passes required before clearing an AI error
+STOP_JOIN_TIMEOUT_SEC = 3.0
 
 PERSON_CLASS_NAME = "person"
 PERSON_COLOR = (50, 60, 235)      # BGR red — คน
@@ -176,10 +178,12 @@ class CameraWorker(threading.Thread):
         ]
 
         self._proposer = ForegroundProposer()
-        self._running = False
+        self._stop_event = threading.Event()
         self._cap = None
+        self._cap_lock = threading.Lock()
         self._last_status = None
         self._last_boxes: list[tuple[list[float], str, tuple[int, int, int]]] = []
+        self._ai_success_streak = 0
 
     def _open(self) -> bool:
         cap = _open_capture(self.device)
@@ -191,8 +195,27 @@ class CameraWorker(threading.Thread):
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         cap.set(cv2.CAP_PROP_FPS, 30)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        self._cap = cap
+        if self._stop_event.is_set():
+            cap.release()
+            return False
+        with self._cap_lock:
+            self._cap = cap
+        # A reopened camera starts a new visual session. Old background and
+        # tracking state would otherwise create ghost boxes and IDs.
+        self._proposer = ForegroundProposer()
+        self._person_tracker = PersonTracker()
+        self._last_boxes = []
+        self._ai_success_streak = 0
         return True
+
+    def _release_capture(self):
+        with self._cap_lock:
+            cap, self._cap = self._cap, None
+        if cap is not None:
+            try:
+                cap.release()
+            except Exception:
+                pass
 
     def _emit_status(self, status: str, message: str = ""):
         if status != self._last_status:
@@ -244,8 +267,8 @@ class CameraWorker(threading.Thread):
                 continue
             try:
                 product_key, score = self.recognizer.identify(crop)
-            except Exception:
-                continue
+            except Exception as exc:
+                raise RuntimeError(f"custom recognizer failed: {exc}") from exc
             if product_key:
                 label = f"{_ascii_label(product_key)} {score:.0%}"
                 self._last_boxes.append((bbox, label, PRODUCT_COLOR))
@@ -255,7 +278,12 @@ class CameraWorker(threading.Thread):
         return detections
 
     def run(self):
-        self._running = True
+        try:
+            self._run_loop()
+        finally:
+            self._release_capture()
+
+    def _run_loop(self):
         if not self._open():
             self._emit_status("offline", f"เปิดกล้อง {self.device} ไม่สำเร็จ")
 
@@ -263,31 +291,35 @@ class CameraWorker(threading.Thread):
         last_reopen_attempt = 0.0
         frame_number = 0
 
-        while self._running:
-            if self._cap is None or not self._cap.isOpened():
-                now = time.time()
+        while not self._stop_event.is_set():
+            cap = self._cap
+            if cap is None or not cap.isOpened():
+                now = time.monotonic()
                 if now - last_reopen_attempt >= REOPEN_INTERVAL_SEC:
                     last_reopen_attempt = now
                     if self._open():
                         fail_count = 0
+                        frame_number = 0
                         self._emit_status("online", "เชื่อมต่อกล้องสำเร็จ")
                     else:
                         self._emit_status("offline", f"ไม่พบกล้อง {self.device}")
-                time.sleep(0.2)
+                self._stop_event.wait(0.2)
                 continue
 
-            ok, frame = self._cap.read()
+            ok, frame = cap.read()
+            if self._stop_event.is_set():
+                break
             if not ok or frame is None:
                 fail_count += 1
                 if fail_count >= FAIL_THRESHOLD:
                     self._emit_status("offline", "อ่านภาพจากกล้องไม่ได้ต่อเนื่อง")
-                    self._cap.release()
-                    self._cap = None
-                time.sleep(0.03)
+                    self._release_capture()
+                self._stop_event.wait(0.03)
                 continue
 
             fail_count = 0
-            self._emit_status("online", "ปกติ")
+            if self._last_status in (None, "offline"):
+                self._emit_status("online", "ปกติ")
             frame_number += 1
 
             ran_inference = frame_number % DETECT_EVERY_N_FRAMES == 0
@@ -300,7 +332,12 @@ class CameraWorker(threading.Thread):
                     self.on_person_tracks(self.camera_id, visible_tracks, evicted_tracks)
                     detections.extend(legacy_detections)
                     detections.extend(self._run_custom_recognition(frame, claimed_boxes))
+                    self._ai_success_streak += 1
+                    if (self._last_status == "error" and
+                            self._ai_success_streak >= AI_RECOVERY_SUCCESS_COUNT):
+                        self._emit_status("online", "AI กลับมาทำงานปกติ")
                 except Exception as exc:
+                    self._ai_success_streak = 0
                     self._emit_status("error", f"AI ตรวจจับล้มเหลว: {exc}")
             else:
                 self._proposer.update(frame)
@@ -312,22 +349,26 @@ class CameraWorker(threading.Thread):
             for bbox, label, color in self._last_boxes:
                 _draw_box(display_frame, bbox, label, color)
 
+            if self._stop_event.is_set():
+                break
             self.on_frame(self.camera_id, display_frame)
             if ran_inference:
                 self.on_detections(self.camera_id, detections)
 
-        if self._cap is not None:
-            self._cap.release()
-
     def stop(self):
-        self._running = False
-        self.join(timeout=2)
+        self._stop_event.set()
+        # Helps unblock backends whose read() hangs after a disconnect.
+        self._release_capture()
+        if self.is_alive() and threading.current_thread() is not self:
+            self.join(timeout=STOP_JOIN_TIMEOUT_SEC)
 
     def get_resolution(self) -> tuple[int, int] | None:
         """Actual negotiated capture resolution, for diagnostics — None if
         the camera isn't currently open."""
-        if self._cap is None:
+        with self._cap_lock:
+            cap = self._cap
+        if cap is None or not cap.isOpened():
             return None
-        width = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         return (width, height) if width and height else None

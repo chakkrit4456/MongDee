@@ -10,9 +10,14 @@ the exact same interface main_window.py/trainer_window.py already use.
 
 from __future__ import annotations
 
+import time
+
 from PySide6.QtCore import QObject, Signal
 
 from core.vision import CameraWorker as _PlainCameraWorker
+
+UI_MAX_FPS = 20
+UI_FRAME_INTERVAL_SEC = 1.0 / UI_MAX_FPS
 
 
 class QtCameraWorker(QObject):
@@ -24,6 +29,7 @@ class QtCameraWorker(QObject):
                  recognizer=None, conf_threshold: float = 0.45, device_target="cpu",
                  show_unknown: bool = True, parent=None):
         super().__init__(parent)
+        self._last_frame_emit = 0.0
         self._worker = _PlainCameraWorker(
             camera_id=camera_id,
             device=device,
@@ -33,10 +39,19 @@ class QtCameraWorker(QObject):
             conf_threshold=conf_threshold,
             device_target=device_target,
             show_unknown=show_unknown,
-            on_frame=self.frame_ready.emit,
+            on_frame=self._emit_frame,
             on_detections=self.detections_ready.emit,
             on_status=self.status_changed.emit,
         )
+
+    def _emit_frame(self, camera_id, frame):
+        """Bound queued UI updates so multiple cameras cannot build a stale
+        frame backlog when detection or painting is slower than capture."""
+        now = time.monotonic()
+        if now - self._last_frame_emit < UI_FRAME_INTERVAL_SEC:
+            return
+        self._last_frame_emit = now
+        self.frame_ready.emit(camera_id, frame)
 
     @property
     def camera_id(self) -> str:

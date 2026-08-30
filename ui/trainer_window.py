@@ -72,12 +72,13 @@ class LiveTestDialog(QDialog):
     def __init__(self, model, model_device, catalog, recognizer, parent=None):
         super().__init__(parent)
         self.setWindowTitle("ทดสอบการจดจำสินค้าด้วยกล้องสด")
-        self.resize(760, 600)
+        self.resize(960, 760)
+        self.setMinimumSize(760, 600)
 
         layout = QVBoxLayout(self)
         self.video_label = QLabel("กำลังเปิดกล้อง...")
         self.video_label.setAlignment(Qt.AlignCenter)
-        self.video_label.setMinimumSize(700, 500)
+        self.video_label.setMinimumSize(700, 520)
         self.video_label.setStyleSheet("background: #111318; color: #888; border-radius: 8px;")
         layout.addWidget(self.video_label, 1)
 
@@ -163,16 +164,19 @@ class TrainerWindow(QWidget):
         self.import_worker: ImportWorker | None = None
 
         self.setWindowTitle("MONGDEE AI Trainer — เทรน AI ให้รู้จักสินค้าจริง")
-        self.resize(1100, 700)
+        self.resize(1280, 820)
+        self.setMinimumSize(960, 650)
         self._build_ui()
         self._refresh_product_list()
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self):
         root = QVBoxLayout(self)
+        root.setContentsMargins(20, 18, 20, 18)
+        root.setSpacing(12)
 
         header = QLabel("🎓 เทรน AI ให้รู้จักสินค้าจริง")
-        header.setFont(QFont("Sans", 15, QFont.Bold))
+        header.setFont(QFont("Sans", 19, QFont.Bold))
         root.addWidget(header)
 
         hint = QLabel(
@@ -185,6 +189,7 @@ class TrainerWindow(QWidget):
         root.addWidget(hint)
 
         body = QHBoxLayout()
+        body.setSpacing(14)
 
         left = QVBoxLayout()
         left.addWidget(QLabel("รายการสินค้า"))
@@ -196,19 +201,21 @@ class TrainerWindow(QWidget):
         left.addWidget(add_btn)
         left_widget = QWidget()
         left_widget.setLayout(left)
-        left_widget.setMaximumWidth(320)
-        body.addWidget(left_widget)
+        left_widget.setMinimumWidth(280)
+        left_widget.setMaximumWidth(380)
+        body.addWidget(left_widget, 1)
 
-        body.addWidget(self._build_detail_panel(), 1)
+        body.addWidget(self._build_detail_panel(), 3)
         root.addLayout(body, 1)
 
         self.setStyleSheet("""
-            QWidget { background: #101218; color: white; }
+            QWidget { background: #101218; color: white; font-size: 14px; }
             QPushButton { background: #20232c; border: 1px solid #383c48; border-radius: 8px;
-                          padding: 8px 14px; color: white; }
+                          padding: 10px 16px; color: white; min-height: 20px; }
             QPushButton:hover { background: #2b2f3a; }
             QPushButton:disabled { color: #666; }
             QListWidget { background: #181a20; border: 1px solid #30333d; border-radius: 6px; color: white; }
+            QListWidget::item { padding: 8px; }
             QProgressBar { background: #181a20; border: 1px solid #30333d; border-radius: 6px;
                            text-align: center; color: white; }
             QProgressBar::chunk { background: #2ecc71; border-radius: 6px; }
@@ -218,9 +225,11 @@ class TrainerWindow(QWidget):
         panel = QFrame()
         panel.setStyleSheet("QFrame { background: #181a20; border: 1px solid #30333d; border-radius: 12px; }")
         layout = QVBoxLayout(panel)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
 
         self.detail_title = QLabel("เลือกสินค้าทางซ้าย เพื่อเริ่มอัปโหลดข้อมูลเทรน")
-        self.detail_title.setFont(QFont("Sans", 14, QFont.Bold))
+        self.detail_title.setFont(QFont("Sans", 17, QFont.Bold))
         self.detail_title.setWordWrap(True)
         layout.addWidget(self.detail_title)
 
