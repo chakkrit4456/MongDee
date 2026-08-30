@@ -21,6 +21,24 @@ from web.booth_manager import STREAM_FPS, BoothManager
 
 WEB_ROOT = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(WEB_ROOT / "templates"))
+UPLOAD_CHUNK_SIZE = 1024 * 1024
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_IMAGE_BATCH_BYTES = 100 * 1024 * 1024
+MAX_VIDEO_BYTES = 500 * 1024 * 1024
+
+
+async def _read_upload_limited(upload: UploadFile, max_bytes: int) -> bytes:
+    chunks = []
+    total = 0
+    while True:
+        chunk = await upload.read(UPLOAD_CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(413, f"ไฟล์ {upload.filename or ''} มีขนาดใหญ่เกินกำหนด")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def create_app(booth: BoothManager) -> FastAPI:
@@ -260,7 +278,14 @@ def create_app(booth: BoothManager) -> FastAPI:
     async def api_upload_images(key: str, files: list[UploadFile] = File(...)):
         if not booth.catalog.get(key):
             raise HTTPException(404, "ไม่พบสินค้านี้")
-        payload = [(f.filename or "image.jpg", await f.read()) for f in files]
+        payload = []
+        batch_size = 0
+        for upload in files:
+            content = await _read_upload_limited(upload, MAX_IMAGE_BYTES)
+            batch_size += len(content)
+            if batch_size > MAX_IMAGE_BATCH_BYTES:
+                raise HTTPException(413, "รูปภาพทั้งหมดมีขนาดรวมใหญ่เกินกำหนด")
+            payload.append((upload.filename or "image.jpg", content))
         try:
             booth.start_image_import(key, payload)
         except RuntimeError as exc:
@@ -271,7 +296,7 @@ def create_app(booth: BoothManager) -> FastAPI:
     async def api_upload_video(key: str, file: UploadFile = File(...)):
         if not booth.catalog.get(key):
             raise HTTPException(404, "ไม่พบสินค้านี้")
-        content = await file.read()
+        content = await _read_upload_limited(file, MAX_VIDEO_BYTES)
         try:
             booth.start_video_import(key, file.filename or "video.mp4", content)
         except RuntimeError as exc:
@@ -280,7 +305,7 @@ def create_app(booth: BoothManager) -> FastAPI:
 
     @app.get("/api/products/{key}/import_progress")
     def api_import_progress(key: str):
-        return booth.import_progress.get(key, {"done": 0, "total": 0, "status": "idle"})
+        return booth.get_import_progress(key)
 
     @app.post("/api/products/{key}/clear_samples")
     def api_clear_samples(key: str):

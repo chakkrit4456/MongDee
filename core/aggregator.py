@@ -8,6 +8,7 @@ a single camera (slow path — still works with just one webcam).
 
 from __future__ import annotations
 
+import threading
 import time
 
 CONCURRENT_WINDOW_SEC = 0.6      # cameras "agree" if both saw it within this window
@@ -22,31 +23,58 @@ class DetectionAggregator:
         self._sightings: dict[str, dict[str, float]] = {}
         # class_name -> first continuous sighting start ts (any camera)
         self._first_seen: dict[str, float] = {}
+        # class_name -> {camera_id: latest confidence}
+        self._confidences: dict[str, dict[str, float]] = {}
         self.current_product: str | None = None
         self._current_since = 0.0
         self._last_change_ts = 0.0
+        # Browser-mode callbacks arrive concurrently from camera threads.
+        self._lock = threading.RLock()
 
     def update(self, camera_id: str, detections: list[dict]) -> dict | None:
         """Feed one camera's latest detections. Returns a confirmation event or None."""
-        now = time.time()
-        seen_classes = set()
-        for det in detections:
-            name = det["class_name"]
-            seen_classes.add(name)
-            self._sightings.setdefault(name, {})[camera_id] = now
-            self._first_seen.setdefault(name, now)
+        now = time.monotonic()
+        with self._lock:
+            # A camera can disappear without ever sending an empty result.
+            # Remove expired evidence globally before accepting this update so
+            # a new camera cannot inherit another camera's old stable period.
+            self._drop_expired(now)
 
-        # Drop stale sightings for classes not observed just now by this camera.
-        for name, cams in list(self._sightings.items()):
-            if camera_id in cams and name not in seen_classes:
-                del cams[camera_id]
-                if not cams:
-                    del self._sightings[name]
-                    self._first_seen.pop(name, None)
+            seen_classes = set()
+            for det in detections:
+                name = det["class_name"]
+                seen_classes.add(name)
+                self._sightings.setdefault(name, {})[camera_id] = now
+                self._confidences.setdefault(name, {})[camera_id] = float(det.get("conf", 0.0))
+                self._first_seen.setdefault(name, now)
 
-        return self._decide(now, detections)
+            # Drop stale evidence for classes absent from this camera's newest result.
+            for name, cams in list(self._sightings.items()):
+                if camera_id in cams and name not in seen_classes:
+                    del cams[camera_id]
+                    self._confidences.get(name, {}).pop(camera_id, None)
+                    if not cams:
+                        del self._sightings[name]
+                        self._first_seen.pop(name, None)
+                        self._confidences.pop(name, None)
 
-    def _decide(self, now: float, latest_detections: list[dict]) -> dict | None:
+            return self._decide(now)
+
+    def _drop_expired(self, now: float) -> None:
+        for name, cameras in list(self._sightings.items()):
+            for stale_camera in [
+                camera_id
+                for camera_id, seen_at in cameras.items()
+                if now - seen_at > CONCURRENT_WINDOW_SEC
+            ]:
+                del cameras[stale_camera]
+                self._confidences.get(name, {}).pop(stale_camera, None)
+            if not cameras:
+                del self._sightings[name]
+                self._first_seen.pop(name, None)
+                self._confidences.pop(name, None)
+
+    def _decide(self, now: float) -> dict | None:
         # Nothing seen by anyone recently -> go idle.
         most_recent = max(
             (ts for cams in self._sightings.values() for ts in cams.values()),
@@ -72,15 +100,21 @@ class DetectionAggregator:
         if now - self._last_change_ts < RECHANGE_COOLDOWN_SEC:
             return None
 
-        confidence = 0.0
-        for det in latest_detections:
-            if det["class_name"] == best_class:
-                confidence = max(confidence, det["conf"])
+        active_cameras = {
+            camera_id
+            for camera_id, seen_at in self._sightings.get(best_class, {}).items()
+            if now - seen_at <= CONCURRENT_WINDOW_SEC
+        }
+        confidence = max(
+            (conf for camera_id, conf in self._confidences.get(best_class, {}).items()
+             if camera_id in active_cameras),
+            default=0.0,
+        )
 
         self.current_product = best_class
         self._last_change_ts = now
         self._current_since = now
-        cameras = sorted(self._sightings.get(best_class, {}).keys())
+        cameras = sorted(active_cameras)
         return {
             "class_name": best_class,
             "confidence": confidence,

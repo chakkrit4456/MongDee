@@ -320,52 +320,84 @@ class BoothManager:
 
     # ------------------------------------------------------------ training
     def start_image_import(self, product_key: str, filenames_and_bytes: list[tuple[str, bytes]]):
-        if self.import_progress.get(product_key, {}).get("status") == "running":
-            raise RuntimeError("มีงานนำเข้าอยู่แล้วสำหรับสินค้านี้ กรุณารอให้เสร็จก่อน")
-        self.import_progress[product_key] = {"done": 0, "total": len(filenames_and_bytes), "status": "running"}
+        with self._lock:
+            if self.import_progress.get(product_key, {}).get("status") == "running":
+                raise RuntimeError("มีงานนำเข้าอยู่แล้วสำหรับสินค้านี้ กรุณารอให้เสร็จก่อน")
+            self.import_progress[product_key] = {
+                "done": 0, "total": len(filenames_and_bytes), "status": "running"
+            }
 
         def job():
             tmp_dir = tempfile.mkdtemp(prefix="mongdee_upload_")
             try:
                 paths = []
-                for name, content in filenames_and_bytes:
-                    path = Path(tmp_dir) / name
+                for index, (name, content) in enumerate(filenames_and_bytes):
+                    # Upload names are untrusted and may contain ../ or an
+                    # absolute path. Keep every temporary file inside tmp_dir.
+                    safe_name = Path(name).name or "image.bin"
+                    path = Path(tmp_dir) / f"{index:04d}-{safe_name}"
                     path.write_bytes(content)
                     paths.append(str(path))
 
                 def progress_cb(done, total):
-                    self.import_progress[product_key] = {"done": done, "total": total, "status": "running"}
+                    self._set_import_progress(
+                        product_key, {"done": done, "total": total, "status": "running"}
+                    )
 
                 added = training.import_images(paths, product_key, self.recognizer,
                                                 self.model, self.model_device, progress_cb)
-                self.import_progress[product_key] = {"done": added, "total": added, "status": "done"}
+                self._set_import_progress(
+                    product_key, {"done": added, "total": added, "status": "done"}
+                )
             except Exception as exc:
-                self.import_progress[product_key] = {"done": 0, "total": 0, "status": "error", "message": str(exc)}
+                self._set_import_progress(product_key, {
+                    "done": 0, "total": 0, "status": "error", "message": str(exc)
+                })
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
         threading.Thread(target=job, daemon=True).start()
 
     def start_video_import(self, product_key: str, filename: str, content: bytes):
-        if self.import_progress.get(product_key, {}).get("status") == "running":
-            raise RuntimeError("มีงานนำเข้าอยู่แล้วสำหรับสินค้านี้ กรุณารอให้เสร็จก่อน")
-        self.import_progress[product_key] = {"done": 0, "total": 0, "status": "running"}
+        with self._lock:
+            if self.import_progress.get(product_key, {}).get("status") == "running":
+                raise RuntimeError("มีงานนำเข้าอยู่แล้วสำหรับสินค้านี้ กรุณารอให้เสร็จก่อน")
+            self.import_progress[product_key] = {
+                "done": 0, "total": 0, "status": "running"
+            }
 
         def job():
             tmp_dir = tempfile.mkdtemp(prefix="mongdee_upload_")
             try:
-                path = Path(tmp_dir) / filename
+                safe_name = Path(filename).name or "video.bin"
+                path = Path(tmp_dir) / safe_name
                 path.write_bytes(content)
 
                 def progress_cb(done, total):
-                    self.import_progress[product_key] = {"done": done, "total": total, "status": "running"}
+                    self._set_import_progress(
+                        product_key, {"done": done, "total": total, "status": "running"}
+                    )
 
                 added = training.import_video(str(path), product_key, self.recognizer,
                                                self.model, self.model_device, progress_cb)
-                self.import_progress[product_key] = {"done": added, "total": added, "status": "done"}
+                self._set_import_progress(
+                    product_key, {"done": added, "total": added, "status": "done"}
+                )
             except Exception as exc:
-                self.import_progress[product_key] = {"done": 0, "total": 0, "status": "error", "message": str(exc)}
+                self._set_import_progress(product_key, {
+                    "done": 0, "total": 0, "status": "error", "message": str(exc)
+                })
             finally:
                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
         threading.Thread(target=job, daemon=True).start()
+
+    def _set_import_progress(self, product_key: str, state: dict) -> None:
+        with self._lock:
+            self.import_progress[product_key] = state
+
+    def get_import_progress(self, product_key: str) -> dict:
+        with self._lock:
+            return dict(self.import_progress.get(
+                product_key, {"done": 0, "total": 0, "status": "idle"}
+            ))
