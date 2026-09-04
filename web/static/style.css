@@ -217,6 +217,17 @@ th { color: var(--text-faint); font-weight: 600; font-size: 11.5px; text-transfo
 tbody tr { transition: background 0.1s; }
 tbody tr:hover { background: var(--row-hover); }
 
+.tab-nav { display: flex; gap: 4px; margin: 4px 0 14px; border-bottom: 1px solid var(--panel-border); }
+.tab-btn {
+    background: transparent; border: none; border-radius: 0;
+    padding: 9px 16px; color: var(--text-dim); font-size: 13.5px; font-weight: 500;
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-panel.hidden { display: none; }
+
 .cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 14px 0; }
 .stat-card {
     background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius);

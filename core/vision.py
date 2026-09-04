@@ -80,8 +80,15 @@ def _candidate_opens(device) -> list[tuple]:
     same physical webcam. So try every reasonable (device, backend)
     combination and let the caller use whichever one actually opens, instead
     of betting on one. Index-based open is also the only option at all on
-    Windows/macOS, where /dev/video* doesn't exist."""
+    Windows/macOS, where /dev/video* doesn't exist.
+
+    On Windows, cv2.CAP_ANY resolves to MSMF, which on some laptops opens
+    the device (isOpened() == True) but then fails every frame read with
+    "OnReadSample() is called with error status" — _open_capture only checks
+    isOpened(), so it would happily "succeed" with a camera that never
+    delivers a frame. DSHOW doesn't have this failure mode, so try it first."""
     is_linux = sys.platform.startswith("linux")
+    is_windows = sys.platform.startswith("win")
     if isinstance(device, str) and device.isdigit():
         device = int(device)
 
@@ -90,6 +97,8 @@ def _candidate_opens(device) -> list[tuple]:
         if is_linux:
             candidates.append((f"/dev/video{device}", cv2.CAP_V4L2))
             candidates.append((device, cv2.CAP_V4L2))
+        if is_windows:
+            candidates.append((device, cv2.CAP_DSHOW))
         candidates.append((device, cv2.CAP_ANY))
     else:  # explicit device path string, e.g. "/dev/video0"
         if is_linux:
@@ -102,10 +111,17 @@ def _candidate_opens(device) -> list[tuple]:
 
 
 def _open_capture(device) -> cv2.VideoCapture:
+    """isOpened() alone isn't proof a backend works — MSMF (and, on other
+    hardware, DSHOW) can happily open a device handle and then fail every
+    frame read forever. So each candidate must prove it delivers a frame
+    before it's accepted; a backend that opens but never reads is skipped
+    in favor of the next candidate instead of being returned as "working"."""
     for dev, backend in _candidate_opens(device):
         cap = cv2.VideoCapture(dev, backend)
         if cap.isOpened():
-            return cap
+            ok, _ = cap.read()
+            if ok:
+                return cap
         cap.release()
     return cv2.VideoCapture(device)  # exhausted every candidate; caller checks isOpened()
 
