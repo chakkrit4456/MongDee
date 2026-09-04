@@ -206,3 +206,12 @@ document.getElementById('import-file').addEventListener('change', (e) => {
 
 refresh();
 setInterval(refresh, 5000);
+
+for (const btn of document.querySelectorAll('.tab-btn')) {
+    btn.addEventListener('click', () => {
+        document.querySelector('.tab-btn.active').classList.remove('active');
+        document.querySelector('.tab-panel:not(.hidden)').classList.add('hidden');
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.remove('hidden');
+    });
+}
